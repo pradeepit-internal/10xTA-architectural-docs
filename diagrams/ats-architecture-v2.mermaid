@@ -1,0 +1,120 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4F46E5', 'primaryTextColor': '#fff', 'primaryBorderColor': '#3730A3', 'lineColor': '#6366F1', 'secondaryColor': '#F0FDFA', 'tertiaryColor': '#EEF2FF'}}}%%
+
+flowchart TB
+    subgraph Clients["🌐 Client Applications"]
+        direction LR
+        WebApp["🖥️ Web Application<br/>(React/Angular)"]
+        MobileApp["📱 Mobile App<br/>(iOS/Android)"]
+        ThirdParty["🔗 Third-Party<br/>Integrations"]
+    end
+
+    subgraph IDP["🔐 Identity Provider Layer"]
+        direction LR
+        AzureAD["Azure AD External ID<br/>─────────────<br/>• Social Login (LinkedIn, Google)<br/>• Enterprise SSO (SAML/OIDC)<br/>• MFA Support<br/>• Custom Policies"]
+        Cognito["AWS Cognito<br/>(Alternative)<br/>─────────────<br/>• User Pools<br/>• Identity Pools<br/>• Federation"]
+    end
+
+    subgraph Gateway["🚪 API Gateway Layer"]
+        SCG["Spring Cloud Gateway<br/>═══════════════════════════<br/>🔑 <b>Authentication</b><br/>• JWT Validation<br/>• Token Introspection<br/>• Session Management<br/>─────────────────────<br/>🛡️ <b>Authorization</b><br/>• Role-Based Access (RBAC)<br/>• Tenant Context Injection<br/>• Permission Validation<br/>─────────────────────<br/>🔀 <b>Routing</b><br/>• Dynamic Route Resolution<br/>• Load Balancing<br/>• Rate Limiting<br/>─────────────────────<br/>📦 <b>Caching</b><br/>• Master Data Cache (Redis)<br/>• Tenant Config Cache<br/>─────────────────────<br/>📄 <b>API Aggregation</b><br/>• OpenAPI/Swagger Aggregation<br/>• API Documentation Portal"]
+    end
+
+    subgraph Services["⚙️ Microservices Layer"]
+        direction TB
+        
+        subgraph BusinessServices["📊 Business Domain Services"]
+            direction LR
+            CandidateSvc["👤 Candidate Service<br/>─────────────<br/>• Profile Management<br/>• Application Tracking<br/>• Candidate Search<br/>• Talent Pool"]
+            RecruiterSvc["👔 Recruiter Service<br/>─────────────<br/>• Job Management<br/>• Pipeline Management<br/>• Interview Scheduling<br/>• Hiring Workflows"]
+        end
+        
+        subgraph TechnicalServices["🔧 Technical Services"]
+            direction LR
+            TenantSvc["🏢 Tenant Service<br/>─────────────<br/>• Tenant Provisioning<br/>• Schema Management<br/>• Tenant Isolation<br/>• Billing Integration"]
+            DocMgmtSvc["📁 Document Service<br/>─────────────<br/>• File Upload/Download<br/>• SAS URL Generation<br/>• Version Control<br/>• Azure Blob Storage"]
+            NotificationSvc["🔔 Notification Service<br/>─────────────<br/>• Email (SendGrid/SES)<br/>• SMS<br/>• Push Notifications<br/>• In-App Alerts"]
+            ConfigSvc["⚙️ Config Service<br/>─────────────<br/>• Feature Flags<br/>• Tenant Settings<br/>• System Configuration<br/>• Spring Cloud Config"]
+        end
+        
+        subgraph AIServices["🤖 AI/ML Services"]
+            direction LR
+            ResumeParser["📄 Resume Parser<br/>─────────────<br/>• PDF/DOCX Extraction<br/>• NLP Processing<br/>• Structured Data Output<br/>• Skills Extraction"]
+            CandidateRanking["📈 Ranking Service<br/>─────────────<br/>• Job-Candidate Match<br/>• Scoring Algorithm<br/>• Skill Gap Analysis<br/>• Recommendation Engine"]
+            BotInterview["🎙️ Interview Bot<br/>─────────────<br/>• Conversational AI<br/>• Question Generation<br/>• Response Evaluation<br/>• Scheduling Automation"]
+            VoiceAnalysis["🎤 Voice Analysis<br/>─────────────<br/>• Speech-to-Text<br/>• Sentiment Analysis<br/>• Communication Skills<br/>• Interview Transcription"]
+        end
+    end
+
+    subgraph Infrastructure["🗄️ Data & Infrastructure Layer"]
+        direction TB
+        
+        subgraph DataLayer["💾 Database Layer"]
+            MongoDB[("🍃 MongoDB<br/>═══════════════<br/><b>Multi-Tenant Architecture</b><br/>One Schema Per Tenant<br/>─────────────────────<br/>• tenant_alpha_db<br/>• tenant_beta_db<br/>• tenant_gamma_db<br/>─────────────────────<br/>Shared Collections:<br/>• system_config<br/>• master_data")]
+        end
+        
+        subgraph CacheLayer["⚡ Cache Layer"]
+            Redis[("Redis Cluster<br/>─────────────<br/>• Session Store<br/>• API Response Cache<br/>• Rate Limit Counters<br/>• Real-time Updates")]
+        end
+        
+        subgraph StorageLayer["☁️ Storage Layer"]
+            BlobStorage[("Azure Blob Storage<br/>─────────────<br/>• Resumes<br/>• Documents<br/>• Profile Images<br/>• Interview Recordings")]
+        end
+        
+        subgraph EventStreaming["📨 Event Streaming"]
+            Kafka["Apache Kafka / Confluent<br/>═══════════════════════════<br/>📋 <b>Topics</b><br/>─────────────────────<br/>• candidate.applications<br/>• candidate.profile.updates<br/>• job.postings<br/>• interview.events<br/>• resume.parsing.queue<br/>• notifications.outbound<br/>• audit.trail<br/>─────────────────────<br/>⚙️ <b>Features</b><br/>• Message Persistence<br/>• Consumer Groups<br/>• Event Replay<br/>• Exactly-once Semantics<br/>• Schema Registry (Avro)"]
+        end
+    end
+
+    subgraph Observability["📊 Observability"]
+        direction LR
+        Logging["📝 Logging<br/>(ELK/Azure Monitor)"]
+        Metrics["📈 Metrics<br/>(Prometheus/Grafana)"]
+        Tracing["🔍 Distributed Tracing<br/>(Jaeger/Zipkin)"]
+    end
+
+    %% Connections
+    Clients --> IDP
+    IDP --> Gateway
+    Clients --> Gateway
+    
+    Gateway --> BusinessServices
+    Gateway --> TechnicalServices
+    Gateway --> AIServices
+    
+    BusinessServices --> MongoDB
+    TechnicalServices --> MongoDB
+    AIServices --> MongoDB
+    
+    BusinessServices --> Redis
+    TechnicalServices --> Redis
+    Gateway --> Redis
+    
+    DocMgmtSvc --> BlobStorage
+    AIServices --> BlobStorage
+    
+    %% Kafka connections (event-driven)
+    BusinessServices <--> Kafka
+    TechnicalServices <--> Kafka
+    AIServices <--> Kafka
+    
+    Services --> Observability
+
+    %% Styling
+    classDef clientStyle fill:#DBEAFE,stroke:#2563EB,stroke-width:2px,color:#1E3A8A
+    classDef idpStyle fill:#FEF3C7,stroke:#D97706,stroke-width:2px,color:#92400E
+    classDef gatewayStyle fill:#D1FAE5,stroke:#059669,stroke-width:2px,color:#065F46
+    classDef businessStyle fill:#EDE9FE,stroke:#7C3AED,stroke-width:2px,color:#5B21B6
+    classDef techStyle fill:#FEE2E2,stroke:#DC2626,stroke-width:2px,color:#991B1B
+    classDef aiStyle fill:#CFFAFE,stroke:#0891B2,stroke-width:2px,color:#155E75
+    classDef dataStyle fill:#F3F4F6,stroke:#4B5563,stroke-width:2px,color:#1F2937
+    classDef kafkaStyle fill:#FFF7ED,stroke:#EA580C,stroke-width:3px,color:#9A3412
+    classDef obsStyle fill:#FCE7F3,stroke:#DB2777,stroke-width:2px,color:#9D174D
+    
+    class WebApp,MobileApp,ThirdParty clientStyle
+    class AzureAD,Cognito idpStyle
+    class SCG gatewayStyle
+    class CandidateSvc,RecruiterSvc businessStyle
+    class TenantSvc,DocMgmtSvc,NotificationSvc,ConfigSvc techStyle
+    class ResumeParser,CandidateRanking,BotInterview,VoiceAnalysis aiStyle
+    class MongoDB,Redis,BlobStorage dataStyle
+    class Kafka kafkaStyle
+    class Logging,Metrics,Tracing obsStyle

@@ -1,0 +1,30 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Node modules (if using mermaid-cli)
+node_modules/
+
+# Generated output files
+*.png
+*.svg
+output/
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
