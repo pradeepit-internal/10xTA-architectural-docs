@@ -14,11 +14,20 @@ The ATS platform implements a **schema-per-tenant** (database-per-tenant in Mong
 
 **Our Choice: Schema-per-Tenant** provides the right balance of isolation for enterprise clients while keeping infrastructure costs manageable.
 
+## Database Options
+
+| Provider | Azure | AWS |
+|----------|-------|-----|
+| **Managed MongoDB** | Cosmos DB (MongoDB API) | DocumentDB |
+| **MongoDB Atlas** | Available on Azure | Available on AWS |
+
+**Recommendation**: MongoDB Atlas provides best compatibility and can run on either cloud provider.
+
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      MongoDB Cluster                             │
+│              MongoDB Cluster (Atlas / Cosmos / DocumentDB)       │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────┐ │
@@ -229,27 +238,6 @@ db.jobs.createIndex({ "status": 1, "createdAt": -1 });
 db.jobs.createIndex({ "department": 1 });
 ```
 
-## Cross-Tenant Operations (Admin Only)
-
-For platform-level analytics and administration:
-
-```java
-@Service
-@PreAuthorize("hasRole('SUPER_ADMIN')")
-public class PlatformAnalyticsService {
-
-    public PlatformMetrics getGlobalMetrics() {
-        // Iterate across all tenant databases
-        List<String> tenantIds = tenantRegistry.getAllActiveTenantIds();
-        
-        return tenantIds.parallelStream()
-            .map(this::getTenantMetrics)
-            .reduce(PlatformMetrics::merge)
-            .orElse(PlatformMetrics.empty());
-    }
-}
-```
-
 ## Tenant Lifecycle
 
 | State | Description | Data Access |
@@ -260,6 +248,36 @@ public class PlatformAnalyticsService {
 | `DEACTIVATED` | Tenant requested deletion | None (archived) |
 | `DELETED` | After retention period | Purged |
 
+## File Storage Strategy
+
+Tenant files (resumes, documents) are isolated using prefixes:
+
+### Azure Blob Storage
+```
+Container: ats-documents
+├── tenant-001/
+│   ├── resumes/
+│   ├── offer-letters/
+│   └── profile-images/
+├── tenant-002/
+│   ├── resumes/
+│   └── ...
+```
+
+### AWS S3
+```
+Bucket: ats-documents
+├── tenant-001/
+│   ├── resumes/
+│   ├── offer-letters/
+│   └── profile-images/
+├── tenant-002/
+│   ├── resumes/
+│   └── ...
+```
+
+Pre-signed URLs (Azure SAS / AWS Presigned) ensure secure, time-limited access to files.
+
 ## Compliance & Audit
 
 - All tenant data operations logged to `ats_system.audit_logs`
@@ -269,4 +287,4 @@ public class PlatformAnalyticsService {
 
 ## Next Steps
 
-- [Event-Driven Architecture](04-event-driven-architecture.md)
+- [Cloud Service Mapping](04-cloud-service-mapping.md)

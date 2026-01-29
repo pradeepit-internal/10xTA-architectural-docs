@@ -2,7 +2,21 @@
 
 ## Overview
 
-The ATS platform implements a dual authentication strategy to support both individual recruiters (B2C) and enterprise clients (B2B) through Azure AD External ID as the primary identity provider.
+The ATS platform implements a dual authentication strategy to support both individual recruiters (B2C) and enterprise clients (B2B). The platform supports either **Azure External ID (B2C)** or **AWS Cognito** as the identity provider.
+
+## Identity Provider Comparison
+
+| Feature | Azure External ID | AWS Cognito |
+|---------|-------------------|-------------|
+| Social Login | ✅ Native (LinkedIn, Google, Microsoft) | ✅ Native (Google, Facebook, Amazon) |
+| LinkedIn Login | ✅ Built-in | ⚠️ Custom OIDC setup required |
+| Enterprise SSO (SAML) | ✅ Built-in federation | ✅ Via identity pools |
+| Custom Policies | ✅ Advanced (Identity Experience Framework) | ⚠️ Limited (Lambda triggers) |
+| MFA | ✅ Built-in | ✅ Built-in |
+| User Management UI | ✅ Azure Portal | ✅ AWS Console |
+| Pricing | Per MAU | Per MAU |
+
+**Recommendation**: Azure External ID is preferred for enterprise SSO scenarios; Cognito works well for simpler authentication needs.
 
 ## Authentication Flows
 
@@ -10,8 +24,8 @@ The ATS platform implements a dual authentication strategy to support both indiv
 
 ```
 ┌─────────┐     ┌──────────────┐     ┌─────────────────┐     ┌─────────────┐
-│  User   │────▶│ Azure AD B2C │────▶│ Social Provider │────▶│   Gateway   │
-│         │◀────│              │◀────│ (LinkedIn/Google)│◀────│             │
+│  User   │────▶│   Identity   │────▶│ Social Provider │────▶│   Gateway   │
+│         │◀────│   Provider   │◀────│ (LinkedIn/Google)│◀────│             │
 └─────────┘     └──────────────┘     └─────────────────┘     └─────────────┘
                       │
                       ▼
@@ -21,7 +35,7 @@ The ATS platform implements a dual authentication strategy to support both indiv
                └──────────────┘
 ```
 
-**Supported Providers:**
+**Supported Social Providers:**
 - LinkedIn (primary for recruiters)
 - Google
 - Microsoft Personal
@@ -31,9 +45,10 @@ The ATS platform implements a dual authentication strategy to support both indiv
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
-│  Employee   │────▶│ Azure AD B2C │────▶│ Corporate IdP   │
-│             │◀────│  Federation  │◀────│ (SAML/OIDC)     │
-└─────────────┘     └──────────────┘     └─────────────────┘
+│  Employee   │────▶│   Identity   │────▶│ Corporate IdP   │
+│             │◀────│   Provider   │◀────│ (SAML/OIDC)     │
+└─────────────┘     │  Federation  │     └─────────────────┘
+                    └──────────────┘
                            │
                            ▼
                     ┌──────────────┐
@@ -51,16 +66,16 @@ The ATS platform implements a dual authentication strategy to support both indiv
 
 ```json
 {
-  "iss": "https://atsplatform.b2clogin.com/...",
+  "iss": "https://[identity-provider-url]",
   "sub": "user-uuid-here",
   "aud": "ats-platform-client-id",
   "exp": 1704067200,
   "iat": 1704063600,
   "auth_time": 1704063600,
   "idp": "linkedin.com",
-  "extension_tenantId": "tenant-uuid",
-  "extension_roles": ["RECRUITER", "HIRING_MANAGER"],
-  "extension_permissions": ["candidate:read", "candidate:write", "job:manage"],
+  "tenantId": "tenant-uuid",
+  "roles": ["RECRUITER", "HIRING_MANAGER"],
+  "permissions": ["candidate:read", "candidate:write", "job:manage"],
   "name": "John Doe",
   "email": "john.doe@company.com"
 }
@@ -68,7 +83,7 @@ The ATS platform implements a dual authentication strategy to support both indiv
 
 ## Gateway Authentication Flow
 
-### Spring Cloud Gateway Filter Chain
+### Spring Cloud Gateway Security Configuration
 
 ```java
 @Configuration
@@ -92,7 +107,7 @@ public class SecurityConfig {
 }
 ```
 
-### Tenant Context Injection Filter
+### Tenant Context Injection
 
 ```java
 @Component
@@ -116,11 +131,6 @@ public class TenantContextFilter implements GlobalFilter, Ordered {
                     
                 return chain.filter(exchange.mutate().request(mutatedRequest).build());
             });
-    }
-
-    @Override
-    public int getOrder() {
-        return -1; // Run after authentication
     }
 }
 ```
@@ -154,10 +164,38 @@ public class TenantContextFilter implements GlobalFilter, Ordered {
 └─────────────────┴───────┴───────┴───────┴───────┴───────┴───────┘
 ```
 
-## Security Considerations
+## Configuration Examples
+
+### Azure External ID Configuration
+
+```yaml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://${AZURE_B2C_TENANT}.b2clogin.com/${AZURE_B2C_TENANT}.onmicrosoft.com/${AZURE_B2C_POLICY}/v2.0/
+          jwk-set-uri: https://${AZURE_B2C_TENANT}.b2clogin.com/${AZURE_B2C_TENANT}.onmicrosoft.com/${AZURE_B2C_POLICY}/discovery/v2.0/keys
+          audiences: ${AZURE_B2C_CLIENT_ID}
+```
+
+### AWS Cognito Configuration
+
+```yaml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://cognito-idp.${AWS_REGION}.amazonaws.com/${AWS_COGNITO_USER_POOL_ID}
+          jwk-set-uri: https://cognito-idp.${AWS_REGION}.amazonaws.com/${AWS_COGNITO_USER_POOL_ID}/.well-known/jwks.json
+          audiences: ${AWS_COGNITO_CLIENT_ID}
+```
+
+## Security Best Practices
 
 ### Token Validation
-- Validate issuer (`iss`) against known Azure AD B2C tenant
+- Validate issuer (`iss`) against known identity provider
 - Verify audience (`aud`) matches application client ID
 - Check token expiration (`exp`)
 - Validate signature using JWKS endpoint
@@ -172,22 +210,7 @@ public class TenantContextFilter implements GlobalFilter, Ordered {
 - Per-tenant: 10,000 requests/minute
 - Burst allowance: 2x normal rate for 10 seconds
 
-## Configuration
-
-### Azure AD B2C Settings
-
-```yaml
-spring:
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: https://${AZURE_B2C_TENANT}.b2clogin.com/${AZURE_B2C_TENANT}.onmicrosoft.com/${AZURE_B2C_POLICY}/v2.0/
-          jwk-set-uri: https://${AZURE_B2C_TENANT}.b2clogin.com/${AZURE_B2C_TENANT}.onmicrosoft.com/${AZURE_B2C_POLICY}/discovery/v2.0/keys
-          audiences: ${AZURE_B2C_CLIENT_ID}
-```
-
 ## Next Steps
 
 - [Multi-Tenancy Strategy](03-multi-tenancy.md)
-- [Event-Driven Architecture](04-event-driven-architecture.md)
+- [Cloud Service Mapping](04-cloud-service-mapping.md)
