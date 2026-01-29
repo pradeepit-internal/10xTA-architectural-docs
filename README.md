@@ -1,6 +1,6 @@
-# 🏗️ ATS Platform - Architectural Documentation
+# 🏗️ 10xTA- Architectural Documentation
 
-A comprehensive multi-tenant Applicant Tracking System (ATS) built with microservices architecture, designed for B2B SaaS recruitment solutions.
+A comprehensive multi-tenant system  built with microservices architecture, designed for B2B SaaS recruitment solutions.
 
 ## 📋 Table of Contents
 
